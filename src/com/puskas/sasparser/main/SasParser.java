@@ -18,20 +18,21 @@ public class SasParser {
   public static void main(String [] args) {
     if (args.length != 2) {
       System.err.println("You need to enter precisely 2 command line arguments:\nthe input filename and the output filename");
+      System.err.println("Number of args: " +args.length);
       System.exit(1);
     }
     SasParser parser = new SasParser();
-    createDataFile(args[0], args[1]);
+    parser.createDataFile(args);
   }
   
   private SasParser() { }
 
-  private void createDataFile(fileName, outFile) {
+  private void createDataFile(String [] args) {
     try {
-      File file = new File(fileName);
+      File file = new File(args[0]);
       FileInputStream fis = new FileInputStream(file);
       SasFileReader sasFileReader = new SasFileReader(fis);
-      Writer writer = new FileWriter(outFile);
+      Writer writer = new FileWriter(args[1]);
       CSVDataWriter csvDataWriter = new CSVDataWriter(writer);
       csvDataWriter.writeColumnNames(sasFileReader.getColumns());
       csvDataWriter.writeRowsArray(sasFileReader.getColumns(), sasFileReader.readAll());

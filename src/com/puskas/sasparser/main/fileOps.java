@@ -9,11 +9,6 @@ class FiList {
       System.exit(1);
     }
 
-    /* Get names of SAS files in the path */
-    String[] fns = getSasFilenames(args[0]);
-    for (int i =0; i < fns.length; i++)
-      System.out.println(fns[i]);
-
     /* Create csv directory */
     String csv = args[0] + "/csv";
     Boolean success = (new File(csv)).mkdir();
@@ -21,6 +16,11 @@ class FiList {
       System.out.println("Failed to create csv directory");
       System.exit(1);
     }
+    /* Get names of SAS files in the path */
+    String[] fns = getSasFilenames(args[0]);
+    for (int i =0; i < fns.length; i++)
+      System.out.println(fns[i]);
+
   }
 
   private static String[] getSasFilenames(String path){
@@ -57,4 +57,22 @@ class FiList {
     }
   return(sasfiles);
   } /* Close getSasFilenames */
+
+  private void createDataFile(String sasfile, String csvfile) {
+    try {
+      File file = new File(sasfile);
+      FileInputStream fis = new FileInputStream(file);
+      SasFileReader sasFileReader = new SasFileReader(fis);
+      Writer writer = new FileWriter(csvfile);
+      CSVDataWriter csvDataWriter = new CSVDataWriter(writer);
+      csvDataWriter.writeColumnNames(sasFileReader.getColumns());
+      csvDataWriter.writeRowsArray(sasFileReader.getColumns(), sasFileReader.readAll());
+    } 
+    catch (IOException ioe) {
+      System.err.println("There has been an IO error");
+      System.err.println("Details:...");
+      ioe.printStackTrace();
+    }
+  } /* Close createDataFile */
+
 } /* Close First */

@@ -1,5 +1,3 @@
 #!/bin/bash
-#cd ~/Insync/work/general/sas/SASParser
-java -cp libs/*:bin com.puskas.sasparser.main.SasParser $1 $2
-
-
+cd ~/Work/repos/github/unsas/
+java -cp lib/*:bin com.puskas.sasparser.main.fileOps $1

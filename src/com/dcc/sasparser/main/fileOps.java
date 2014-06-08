@@ -1,6 +1,21 @@
-import java.awt.List;
+package com.dataclarityconsulting.sasripper;
+
+//import java.awt.List;
+//import java.util.*;
+
+//import java.io.BufferedInputStream;
+//import java.io.BufferedReader;
 import java.io.File;
-import java.util.*;
+import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+//import java.io.InputStreamReader;
+import java.io.Writer;
+
+import com.ggasoftware.parso.CSVDataWriter;
+//import com.ggasoftware.parso.CSVMetadataWriter;
+import com.ggasoftware.parso.SasFileReader;
+
 
 class FiList {
   public static void main(String[] args){
@@ -18,8 +33,16 @@ class FiList {
     }
     /* Get names of SAS files in the path */
     String[] fns = getSasFilenames(args[0]);
-    for (int i =0; i < fns.length; i++)
-      System.out.println(fns[i]);
+    for (int i=0; i < fns.length; i++)
+      System.out.println(fns[i] + ".sas7bdat -> csv/" + fns[i] + ".csv");
+
+    /* Convert the files */
+    for (String fn : fns){
+      String inf = args[0] + "/" + fn + ".sas7bdat";
+      String ouf = args[0] + "/csv/" + fn + ".csv";
+      
+      createDataFile(inf, ouf);
+    }
 
   }
 
@@ -58,7 +81,7 @@ class FiList {
   return(sasfiles);
   } /* Close getSasFilenames */
 
-  private void createDataFile(String sasfile, String csvfile) {
+  private static void createDataFile(String sasfile, String csvfile) {
     try {
       File file = new File(sasfile);
       FileInputStream fis = new FileInputStream(file);

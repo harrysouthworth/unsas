@@ -1,3 +1,5 @@
 #!/bin/bash
+#$wh=$PWD/$1
 cd ~/Work/repos/github/unsas/
-java -cp lib/*:bin com.dcc.unsas.main.unsas $PWD/$1
+#echo $wh
+java -cp lib/*:bin com.dcc.unsas.main.unsas $1

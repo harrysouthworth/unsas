@@ -35,14 +35,13 @@ class unsas {
 
     /* Get names of SAS files in the path */
     String[] fns = getSasFilenames(args[0]);
-    for (int i=0; i < fns.length; i++)
-      System.out.println(fns[i] + ".sas7bdat -> csv/" + fns[i] + ".csv");
 
     /* Convert the files */
     for (String fn : fns){
       String inf = args[0] + "/" + fn + ".sas7bdat";
       String ouf = args[0] + "/csv/" + fn + ".csv";
 
+      System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
       createDataFile(inf, ouf);
     }
   }
@@ -84,9 +83,6 @@ class unsas {
 
   private static void createDataFile(String sasfile, String csvfile) {
     try {
-      System.out.println("AAAAAAAAARGH: " + sasfile);
-      System.out.println("AAAAAAAAARGH: " + csvfile);
- 
       File file = new File(sasfile);
 
       FileInputStream fis = new FileInputStream(file);

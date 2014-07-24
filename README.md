@@ -16,3 +16,6 @@ If it doesn't work, there are missing libraries and/or the
 build path isn't correctly specified. I'm new to Java and
 to configuring Eclipse for it, so it's been a bit hit and
 miss.
+
+I'm grateful to the nobel and enlightened Dr Matt Salts for
+all his help with this.

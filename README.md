@@ -4,6 +4,9 @@ Turn SAS data files into .csv files
 This code provides a wrapper to the Parso library of GGA
 software (http://www.ggasoftware.com/opensource/parso).
 
+2015-03-18: New home for the Parso library.
+http://lifescience.opensource.epam.com/parso.html
+
 The version tagged 1.0 will find all .sas7bdat files in the
 named directory, create a new directory called 'csv' and
 dump all the converted data into there. It fails if a

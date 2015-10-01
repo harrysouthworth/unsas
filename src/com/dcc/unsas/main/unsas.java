@@ -1,19 +1,24 @@
 package com.dcc.unsas.main;
 
+import java.sql.*;
 import java.awt.List;
 import java.util.*;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringWriter;
 import java.io.Writer;
 
 import com.ggasoftware.parso.CSVDataWriter;
 import com.ggasoftware.parso.CSVMetadataWriter;
+import com.ggasoftware.parso.Column;
 import com.ggasoftware.parso.SasFileReader;
 //import com.ggasoftware.parso.StringWriter;
 
@@ -47,11 +52,11 @@ class unsas {
     /* Convert the files */
     for (String fn : fns){
       String inf = args[0] + "/" + fn + ".sas7bdat";
-      String ouf = args[0] + "/csv/" + fn + ".csv";
+      String ouf = args[0] + "/sqlite/" + fn + ".db";
       String mdf = args[0] + "/csv/meta/" + fn + ".csv";
 
-      System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
-      createDataFile(inf, ouf, mdf);
+//      System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
+      createSQLiteDB(inf, ouf, mdf, fn);
     }
   }
 
@@ -114,4 +119,96 @@ class unsas {
       ioe.printStackTrace();
     }
   } /* Close createDataFile */
-} /* Close First */
+
+  private static void createSQLiteDB(String sasfile, String dbfile, String metafile, String tbl) {
+    Connection c = null;
+    Statement stmt = null;
+
+    String splitter = "\\.(?=[^\\.]+$)";
+
+    try {
+      File file = new File(sasfile);
+      FileInputStream fis = new FileInputStream(file);
+      SasFileReader sasFileReader = new SasFileReader(fis);
+
+      // Create temporary file for writing rows to, then reading from
+      Writer writer = new FileWriter("temp");
+      CSVDataWriter csvDataWriter = new CSVDataWriter(writer);
+
+      Class.forName("org.sqlite.JDBC");
+      c = DriverManager.getConnection("jdbc:sqlite:" + dbfile);
+      System.out.println("Opened database");
+
+      // Create table
+      stmt = c.createStatement();
+      String sql = "CREATE TABLE " + tbl + " (";
+
+      int i=0;
+      String type;
+      while (true){
+        try { // Column names must be in quotes
+          type = sasFileReader.getColumns().get(i).getType().getName();
+          type = type.split(splitter)[1];
+          if (type.equals("Number")){
+            type = "REAL";
+          }
+          else if (type.equals("String")){
+            type = "TEXT";
+          }
+          else {
+            System.err.println("Field of type other than Number or String: " + type);
+            System.exit(0);
+          }
+          sql += "\"" + sasFileReader.getColumns().get(i).getName() + "\" " + type + ",\n";
+          i++;
+        }
+        catch(Exception e){
+          // Remove the final comma
+          sql = sql.substring(0, sql.length() - 2);
+          break;
+        }
+      }
+      sql += ")";
+      System.out.println(sql);
+      stmt.executeUpdate(sql);
+      sql = "";
+
+      // Now read the data
+      FileReader fr = new FileReader("temp");
+      BufferedReader textReader = new BufferedReader(fr);
+
+      while (sql != null){
+        try {
+          csvDataWriter.writeRow(sasFileReader.getColumns(), sasFileReader.readNext());
+          sql = textReader.readLine();
+
+          sql.replace("\n", "");
+          stmt.execute(sql);
+        }
+        catch(Exception e){
+          break;
+        }
+      } // Close while
+
+      System.out.println(sql);
+
+      stmt.close();
+      c.close();
+
+      textReader.close();
+    } // Close try
+    catch (IOException ioe) {
+      System.err.println("There has been an IO error");
+      System.err.println("Details:...");
+      ioe.printStackTrace();
+    } // Close catch
+    catch (Exception e) {
+        System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+        System.exit(0);
+    }
+
+  } // Close createSQLiteDB
+
+
+
+} // Close unsas

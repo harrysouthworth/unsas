@@ -182,7 +182,11 @@ class unsas {
         try {
           // Get the values
           csvDataWriter.writeRow(sasFileReader.getColumns(), sasFileReader.readNext());
-          sql = textReader.readLine(); // Read everything, not just one line
+
+          String line;
+          sql = "";
+          while ((line = textReader.readLine()) != null) // Read everything, not just one line
+            sql += line;
           sql.replace("\n", " "); // Remove newlines
           sql.replace("\"", "\'"); // Replace double quotes
 

@@ -56,7 +56,7 @@ class unsas {
       String mdf = args[0] + "/csv/meta/" + fn + ".csv";
 
 //      System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
-      createSQLiteDB(inf, ouf, mdf, fn);
+      createSQLiteDB(inf, ouf, fn);
     }
   }
 
@@ -120,7 +120,7 @@ class unsas {
     }
   } /* Close createDataFile */
 
-  private static void createSQLiteDB(String sasfile, String dbfile, String metafile, String tbl) {
+  private static void createSQLiteDB(String sasfile, String dbfile,String tbl) {
     Connection c = null;
     Statement stmt = null;
 
@@ -130,10 +130,6 @@ class unsas {
       File file = new File(sasfile);
       FileInputStream fis = new FileInputStream(file);
       SasFileReader sasFileReader = new SasFileReader(fis);
-
-      // Create temporary file for writing rows to, then reading from
-      Writer writer = new FileWriter("temp");
-      CSVDataWriter csvDataWriter = new CSVDataWriter(writer);
 
       Class.forName("org.sqlite.JDBC");
       c = DriverManager.getConnection("jdbc:sqlite:" + dbfile);
@@ -171,19 +167,19 @@ class unsas {
         }
       }
       sql += ")";
-      //System.out.println(sql);
       stmt.executeUpdate(sql);
 
+      // Create temporary file for writing rows to, then reading from
+      File fn = File.createTempFile(".temp", null);
+      Writer writer = new FileWriter(fn.getName());
+      CSVDataWriter csvDataWriter = new CSVDataWriter(writer);
+
       // Now read the data
-      FileReader fr = new FileReader("temp");
+      FileReader fr = new FileReader(fn.getName());
       BufferedReader textReader = new BufferedReader(fr);
 
       while (true){
         try {
-          // Add column names
-          //for (int j=0; j < cols.size(); j++) sql += cols.get(j) + ", ";
-          //sql += "VALUES (";
-
           // Get the values
           csvDataWriter.writeRow(sasFileReader.getColumns(), sasFileReader.readNext());
           sql = textReader.readLine(); // Read everything, not just one line
@@ -197,7 +193,7 @@ class unsas {
           sql = "";
           for (i=0; i < ss.length; i++){
             if (ss[i].length() == 0) ss[i] = "NULL";
-            sql += "\"" + ss[i] + "\",";
+            sql += "\"" + ss[i] + "\","; // Wrap in "" (SQLite will remove them for REALs
           }
           // Remove last comma
           sql = sql.substring(0, sql.length() - 1);
@@ -211,12 +207,16 @@ class unsas {
         }
       } // Close while
 
-      //System.out.println(sql);
+      // Need to write the table metadata
+//      CSVMetadataWriter csvMetadataWriter = new CSVMetadataWriter(mwriter);
+ //     csvMetadataWriter.writeMetadata(sasFileReader.getColumns());
 
       stmt.close();
       c.close();
-
+      writer.close();
       textReader.close();
+      // fn.delete() doesn't work, possibly because sasFileReader is still open and has no close method
+      Runtime.getRuntime().exec("rm " + fn.getName());
     } // Close try
     catch (IOException ioe) {
       System.err.println("There has been an IO error");
@@ -229,7 +229,4 @@ class unsas {
     }
 
   } // Close createSQLiteDB
-
-
-
 } // Close unsas

@@ -35,7 +35,7 @@ class unsas {
     String meta = csv + "/meta/";
     System.out.println(csv);
 
-    Boolean success = (new File(csv)).mkdirs();
+    /*Boolean success = (new File(csv)).mkdirs();
     if (!success){
       System.out.println("Failed to create csv directory");
       System.exit(1);
@@ -44,7 +44,7 @@ class unsas {
     if (!success){
     	System.out.println("Failed to create metadata directory");
     	System.exit(1);
-    }
+    }*/
 
     /* Get names of SAS files in the path */
     String[] fns = getSasFilenames(args[0]);
@@ -52,7 +52,7 @@ class unsas {
     /* Convert the files */
     for (String fn : fns){
       String inf = args[0] + "/" + fn + ".sas7bdat";
-      String ouf = args[0] + "/sqlite/" + fn + ".db";
+      String ouf = args[0] + "/sqlite/" + "sqlite.db";
       String mdf = args[0] + "/csv/meta/" + fn + ".csv";
 
 //      System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
@@ -137,7 +137,7 @@ class unsas {
 
       Class.forName("org.sqlite.JDBC");
       c = DriverManager.getConnection("jdbc:sqlite:" + dbfile);
-      System.out.println("Opened database");
+      System.out.println("Adding " + tbl + " to database");
 
       // Create table
       stmt = c.createStatement();
@@ -145,6 +145,7 @@ class unsas {
 
       int i=0;
       String type;
+      ArrayList<String> cols = new ArrayList<String>();
       while (true){
         try { // Column names must be in quotes
           type = sasFileReader.getColumns().get(i).getType().getName();
@@ -159,7 +160,8 @@ class unsas {
             System.err.println("Field of type other than Number or String: " + type);
             System.exit(0);
           }
-          sql += "\"" + sasFileReader.getColumns().get(i).getName() + "\" " + type + ",\n";
+          cols.add(sasFileReader.getColumns().get(i).getName());
+          sql += "\"" + cols.get(i) + "\" " + type + ",\n";
           i++;
         }
         catch(Exception e){
@@ -169,20 +171,39 @@ class unsas {
         }
       }
       sql += ")";
-      System.out.println(sql);
+      //System.out.println(sql);
       stmt.executeUpdate(sql);
-      sql = "";
 
       // Now read the data
       FileReader fr = new FileReader("temp");
       BufferedReader textReader = new BufferedReader(fr);
 
-      while (sql != null){
+      while (true){
         try {
-          csvDataWriter.writeRow(sasFileReader.getColumns(), sasFileReader.readNext());
-          sql = textReader.readLine();
+          // Add column names
+          //for (int j=0; j < cols.size(); j++) sql += cols.get(j) + ", ";
+          //sql += "VALUES (";
 
-          sql.replace("\n", "");
+          // Get the values
+          csvDataWriter.writeRow(sasFileReader.getColumns(), sasFileReader.readNext());
+          sql = textReader.readLine(); // Read everything, not just one line
+          sql.replace("\n", " "); // Remove newlines
+          sql.replace("\"", "\'"); // Replace double quotes
+
+          if (sql == null | sql == "") break;
+
+          // SQLite doesn't recognize ",," as being a null value or empty string.
+          String[] ss = sql.split(",");
+          sql = "";
+          for (i=0; i < ss.length; i++){
+            if (ss[i].length() == 0) ss[i] = "NULL";
+            sql += "\"" + ss[i] + "\",";
+          }
+          // Remove last comma
+          sql = sql.substring(0, sql.length() - 1);
+          sql += ");";
+
+          sql = "INSERT INTO " + tbl + " VALUES (" + sql;
           stmt.execute(sql);
         }
         catch(Exception e){
@@ -190,7 +211,7 @@ class unsas {
         }
       } // Close while
 
-      System.out.println(sql);
+      //System.out.println(sql);
 
       stmt.close();
       c.close();

@@ -1,5 +1,6 @@
 package com.dcc.unsas.main;
 
+import com.opencsv.CSVReader;
 import java.sql.*;
 import java.awt.List;
 import java.util.*;
@@ -33,7 +34,9 @@ class unsas {
     /* Create csv directory */
     String csv = args[0] + "/csv";
     String meta = csv + "/meta/";
-    System.out.println(csv);
+    String sqlite = args[0] + "/sqlite";
+    new File(sqlite).mkdirs();
+    //System.out.println(csv);
 
     /*Boolean success = (new File(csv)).mkdirs();
     if (!success){
@@ -187,16 +190,21 @@ class unsas {
           sql = "";
           while ((line = textReader.readLine()) != null) // Read everything, not just one line
             sql += line;
-          sql.replace("\n", " "); // Remove newlines
-          sql.replace("\"", "\'"); // Replace double quotes
+          sql = sql.replace("\n", " "); // Remove newlines
+          //sql = sql.replace("\"", "\'"); // Replace double quotes
 
           if (sql == null | sql == "") break;
 
           // SQLite doesn't recognize ",," as being a null value or empty string.
-          String[] ss = sql.split(",");
+          String [] ss = sql.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
+          //String[] ss = sql.split(",");
           sql = "";
           for (i=0; i < ss.length; i++){
             if (ss[i].length() == 0) ss[i] = "NULL";
+            // If quoted, remove quotes
+            if (ss[i].substring(0) == "\"" & ss[i].substring(ss[i].length() -1) == "\"")
+            	ss[i] = ss[i].substring(1, ss[i].length() -2);
+            ss[i] = ss[i].replace("\"",  "\'"); // Remove any remainging quotes
             sql += "\"" + ss[i] + "\","; // Wrap in "" (SQLite will remove them for REALs
           }
           // Remove last comma
@@ -207,6 +215,7 @@ class unsas {
           stmt.execute(sql);
         }
         catch(Exception e){
+          System.err.println("Failed to write line to SQLite: " + sql);
           break;
         }
       } // Close while

@@ -1,6 +1,5 @@
 package com.dcc.unsas.main;
 
-import com.opencsv.CSVReader;
 import java.sql.*;
 import java.awt.List;
 import java.util.*;
@@ -69,7 +68,7 @@ class unsas {
     int Nfiles=0;
 
     String splitter = "\\.(?=[^\\.]+$)";
-    
+
     /* Count the SAS files in the path. Rubbish code starts here... */
     for (int i=0; i < files.length; i++){
       if (files[i].isFile()){
@@ -191,24 +190,10 @@ class unsas {
           while ((line = textReader.readLine()) != null) // Read everything, not just one line
             sql += line;
           sql = sql.replace("\n", " "); // Remove newlines
-          //sql = sql.replace("\"", "\'"); // Replace double quotes
 
           if (sql == null | sql == "") break;
 
-          // SQLite doesn't recognize ",," as being a null value or empty string.
-          String [] ss = sql.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
-          //String[] ss = sql.split(",");
-          sql = "";
-          for (i=0; i < ss.length; i++){
-            if (ss[i].length() == 0) ss[i] = "NULL";
-            // If quoted, remove quotes
-            if (ss[i].substring(0) == "\"" & ss[i].substring(ss[i].length() -1) == "\"")
-            	ss[i] = ss[i].substring(1, ss[i].length() -2);
-            ss[i] = ss[i].replace("\"",  "\'"); // Remove any remainging quotes
-            sql += "\"" + ss[i] + "\","; // Wrap in "" (SQLite will remove them for REALs
-          }
-          // Remove last comma
-          sql = sql.substring(0, sql.length() - 1);
+          sql = tidySQL(sql);
           sql += ");";
 
           sql = "INSERT INTO " + tbl + " VALUES (" + sql;
@@ -220,14 +205,51 @@ class unsas {
         }
       } // Close while
 
-      // Need to write the table metadata
-//      CSVMetadataWriter csvMetadataWriter = new CSVMetadataWriter(mwriter);
- //     csvMetadataWriter.writeMetadata(sasFileReader.getColumns());
+      /*************************************************************************
+      ********************       Write the metadata      ***********************
+      ********************                               **********************/
+
+      File mfn = File.createTempFile(".temp", null);
+      Writer mwriter = new FileWriter(mfn.getName());
+      CSVMetadataWriter csvMetadataWriter = new CSVMetadataWriter(mwriter);
+      csvMetadataWriter.writeMetadata(sasFileReader.getColumns());
+
+      // Now read the data
+      FileReader mfr = new FileReader(mfn.getName());
+      BufferedReader mtextReader = new BufferedReader(mfr);
+
+      stmt = c.createStatement();
+
+      System.out.println("... and metadata");
+
+      sql = "CREATE TABLE " + tbl + "Meta (";
+      String newline = mtextReader.readLine(); // First line is colnames
+      newline = newline.replace(" ", "_");
+      sql += newline; 
+      sql = sql.replace(",", " TEXT, ") + " TEXT";
+      sql += ");";
+      //System.out.println(sql);
+      stmt.execute(sql);
+
+      while((newline = mtextReader.readLine()) != null){
+        newline = "\"" + newline + "\"";
+        newline = tidySQL(newline);
+        sql = "INSERT INTO " + tbl + "Meta VALUES (" + newline + ")";
+        System.out.println(sql);
+        stmt.execute(sql);
+      }
+
+      /*************************************************************************
+       ********************************* Tidy up ******************************* 
+       *********************************         ******************************/
 
       stmt.close();
       c.close();
       writer.close();
+      mwriter.close();
       textReader.close();
+      mtextReader.close();
+      fr.close();
       // fn.delete() doesn't work, possibly because sasFileReader is still open and has no close method
       Runtime.getRuntime().exec("rm " + fn.getName());
     } // Close try
@@ -240,6 +262,25 @@ class unsas {
         System.err.println( e.getClass().getName() + ": " + e.getMessage() );
         System.exit(0);
     }
-
   } // Close createSQLiteDB
+  
+  public static String tidySQL(String sql){
+      // SQLite doesn't recognize ",," as being a null value or empty string.
+	  // We also need to deal with quotes and with commas in quoted strings.
+	  // A mature CSV parser would be better, but this appears to work for now
+	  int i;
+      String [] ss = sql.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
+      sql = "";
+      for (i=0; i < ss.length; i++){
+        if (ss[i].length() == 0) ss[i] = "NULL";
+        // If quoted, remove quotes
+        if (ss[i].substring(0) == "\"" & ss[i].substring(ss[i].length() -1) == "\"")
+        	ss[i] = ss[i].substring(1, ss[i].length() -2);
+        ss[i] = ss[i].replace("\"",  "\'"); // Remove any remainging quotes
+        sql += "\"" + ss[i] + "\","; // Wrap in "" (SQLite will remove them for REALs
+      }
+      // Remove last comma
+      sql = sql.substring(0, sql.length() - 1);
+      return(sql);
+  } // Close tidySQL
 } // Close unsas

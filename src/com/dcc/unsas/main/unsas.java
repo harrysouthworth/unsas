@@ -37,7 +37,7 @@ class unsas {
     new File(sqlite).mkdirs();
     //System.out.println(csv);
 
-    /*Boolean success = (new File(csv)).mkdirs();
+    Boolean success = (new File(csv)).mkdirs();
     if (!success){
       System.out.println("Failed to create csv directory");
       System.exit(1);
@@ -46,7 +46,7 @@ class unsas {
     if (!success){
     	System.out.println("Failed to create metadata directory");
     	System.exit(1);
-    }*/
+    }
 
     /* Get names of SAS files in the path */
     String[] fns = getSasFilenames(args[0]);
@@ -54,11 +54,15 @@ class unsas {
     /* Convert the files */
     for (String fn : fns){
       String inf = args[0] + "/" + fn + ".sas7bdat";
-      String ouf = args[0] + "/sqlite/" + "sqlite.db";
+      String ouf = args[0] + "/csv/" + fn + ".csv";
+      String db = args[0] + "/sqlite/" + "sqlite.db";
       String mdf = args[0] + "/csv/meta/" + fn + ".csv";
 
-//      System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
-      createSQLiteDB(inf, ouf, fn);
+      System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
+
+      // Create the CSV and SQLite. The CSV is mostly for debugging and is wasteful of disc space
+      createDataFile(inf, ouf, mdf);
+      createSQLiteDB(inf, db, fn);
     }
   }
 
@@ -141,6 +145,9 @@ class unsas {
       stmt = c.createStatement();
       String sql = "CREATE TABLE " + tbl + " (";
 
+      /*************************************************************************
+       ***************************** Column names ******************************
+       *****************************              *****************************/
       int i=0;
       String type;
       ArrayList<String> cols = new ArrayList<String>();
@@ -171,10 +178,14 @@ class unsas {
       sql += ")";
       stmt.executeUpdate(sql);
 
+      /*************************************************************************
+       ******************************* Add data ********************************
+       *******************************          *******************************/
+
       // Create temporary file for writing rows to, then reading from
       File fn = File.createTempFile(".temp", null);
       Writer writer = new FileWriter(fn.getName());
-      CSVDataWriter csvDataWriter = new CSVDataWriter(writer);
+      CSVDataWriter csvDataWriter = new CSVDataWriter(writer, "\t");
 
       // Now read the data
       FileReader fr = new FileReader(fn.getName());
@@ -187,9 +198,11 @@ class unsas {
 
           String line;
           sql = "";
-          while ((line = textReader.readLine()) != null) // Read everything, not just one line
+          while ((line = textReader.readLine()) != null) { // Read everything, not just one line
+//            System.out.println(line);
             sql += line;
-          sql = sql.replace("\n", " "); // Remove newlines
+          }
+          //System.out.println(sql);
 
           if (sql == null | sql == "") break;
 
@@ -201,7 +214,8 @@ class unsas {
         }
         catch(Exception e){
           System.err.println("Failed to write line to SQLite: " + sql);
-          break;
+          e.printStackTrace();
+          System.exit(0);
         }
       } // Close while
 
@@ -211,7 +225,7 @@ class unsas {
 
       File mfn = File.createTempFile(".temp", null);
       Writer mwriter = new FileWriter(mfn.getName());
-      CSVMetadataWriter csvMetadataWriter = new CSVMetadataWriter(mwriter);
+      CSVMetadataWriter csvMetadataWriter = new CSVMetadataWriter(mwriter, "\t");
       csvMetadataWriter.writeMetadata(sasFileReader.getColumns());
 
       // Now read the data
@@ -224,15 +238,14 @@ class unsas {
 
       sql = "CREATE TABLE " + tbl + "Meta (";
       String newline = mtextReader.readLine(); // First line is colnames
-      newline = newline.replace(" ", "_");
+      newline = newline.replaceAll(" ", "_");
       sql += newline; 
-      sql = sql.replace(",", " TEXT, ") + " TEXT";
+      sql = sql.replaceAll("\t", " TEXT, ") + " TEXT";
       sql += ");";
       //System.out.println(sql);
       stmt.execute(sql);
 
       while((newline = mtextReader.readLine()) != null){
-        //newline = "\"" + newline + "\"";
         newline = tidySQL(newline);
         sql = "INSERT INTO " + tbl + "Meta VALUES (" + newline + ")";
         //System.out.println(sql);
@@ -269,7 +282,10 @@ class unsas {
       // We also need to deal with quotes and with commas in quoted strings.
       // A mature CSV parser would be better, but this appears to work for now
       int i;
-      String [] ss = sql.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)", -1);
+      sql = sql.replaceAll("[\\n\\r]", " "); // Remove newlines
+      // The -1 argument in the next line tells split NOT to drop trailing empty fields
+      //String [] ss = sql.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)", -1); THIS DOESN'T WORK PROPERLY
+      String [] ss = sql.split("\t", -1);
       sql = "";
       //System.out.println(ss.length);
       for (i=0; i < ss.length; i++){
@@ -277,7 +293,8 @@ class unsas {
         // If quoted, remove quotes
         else if (ss[i].substring(0) == "\"" & ss[i].substring(ss[i].length() -1) == "\"")
         	ss[i] = ss[i].substring(1, ss[i].length() -2);
-        ss[i] = ss[i].replace("\"",  "\'"); // Remove any remaining quotes
+        ss[i] = ss[i].replaceAll("\"",  "\'"); // Remove any remaining quotes
+        //System.out.println(ss[i]);
         sql += "\"" + ss[i] + "\","; // Wrap in "" (SQLite will remove them for REALs
       }
       // Remove last comma

@@ -232,10 +232,10 @@ class unsas {
       stmt.execute(sql);
 
       while((newline = mtextReader.readLine()) != null){
-        newline = "\"" + newline + "\"";
+        //newline = "\"" + newline + "\"";
         newline = tidySQL(newline);
         sql = "INSERT INTO " + tbl + "Meta VALUES (" + newline + ")";
-        System.out.println(sql);
+        //System.out.println(sql);
         stmt.execute(sql);
       }
 
@@ -266,17 +266,18 @@ class unsas {
   
   public static String tidySQL(String sql){
       // SQLite doesn't recognize ",," as being a null value or empty string.
-	  // We also need to deal with quotes and with commas in quoted strings.
-	  // A mature CSV parser would be better, but this appears to work for now
-	  int i;
-      String [] ss = sql.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
+      // We also need to deal with quotes and with commas in quoted strings.
+      // A mature CSV parser would be better, but this appears to work for now
+      int i;
+      String [] ss = sql.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)", -1);
       sql = "";
+      //System.out.println(ss.length);
       for (i=0; i < ss.length; i++){
         if (ss[i].length() == 0) ss[i] = "NULL";
         // If quoted, remove quotes
-        if (ss[i].substring(0) == "\"" & ss[i].substring(ss[i].length() -1) == "\"")
+        else if (ss[i].substring(0) == "\"" & ss[i].substring(ss[i].length() -1) == "\"")
         	ss[i] = ss[i].substring(1, ss[i].length() -2);
-        ss[i] = ss[i].replace("\"",  "\'"); // Remove any remainging quotes
+        ss[i] = ss[i].replace("\"",  "\'"); // Remove any remaining quotes
         sql += "\"" + ss[i] + "\","; // Wrap in "" (SQLite will remove them for REALs
       }
       // Remove last comma

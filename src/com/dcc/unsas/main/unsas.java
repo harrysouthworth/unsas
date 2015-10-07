@@ -1,5 +1,6 @@
 package com.dcc.unsas.main;
 
+import java.nio.charset.Charset;
 import java.sql.*;
 import java.awt.List;
 import java.util.*;
@@ -194,22 +195,18 @@ class unsas {
       while (true){
         try {
           // Get the values
-          csvDataWriter.writeRow(sasFileReader.getColumns(), sasFileReader.readNext());
+          Object [] data = sasFileReader.readNext();
+          if (data == null) break;
 
-          String line;
           sql = "";
-          while ((line = textReader.readLine()) != null) { // Read everything, not just one line
-//            System.out.println(line);
-            sql += line;
+          for(i=0; i < data.length; i++){
+            if (data[i] == null) sql += "\"NULL\","; 
+            else sql += "\"" + data[i].toString().replaceAll("[\\n\\r\\t]",  " ").replaceAll(",", ";").replaceAll("\"",  "'") + "\",";
           }
-          //System.out.println(sql);
 
-          if (sql == null | sql == "") break;
+          sql = sql.substring(0, sql.length() - 1); // Remove last comma
 
-          sql = tidySQL(sql);
-          sql += ");";
-
-          sql = "INSERT INTO " + tbl + " VALUES (" + sql;
+          sql = "INSERT INTO " + tbl + " VALUES (" + sql + ");";
           stmt.execute(sql);
         }
         catch(Exception e){
@@ -282,7 +279,7 @@ class unsas {
       // We also need to deal with quotes and with commas in quoted strings.
       // A mature CSV parser would be better, but this appears to work for now
       int i;
-      sql = sql.replaceAll("[\\n\\r]", " "); // Remove newlines
+
       // The -1 argument in the next line tells split NOT to drop trailing empty fields
       //String [] ss = sql.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)", -1); THIS DOESN'T WORK PROPERLY
       String [] ss = sql.split("\t", -1);

@@ -1,3 +1,4 @@
+.temp*
 *.csv
 *.sas7bdat
 *.jar

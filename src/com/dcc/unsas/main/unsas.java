@@ -59,10 +59,10 @@ class unsas {
       String db = args[0] + "/sqlite/" + "sqlite.db";
       String mdf = args[0] + "/csv/meta/" + fn + ".csv";
 
-      System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
-
       // Create the CSV and SQLite. The CSV is mostly for debugging and is wasteful of disc space
-      createDataFile(inf, ouf, mdf);
+      // DO NOT DELETE THE CSV CODE!!
+      //System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
+      //createDataFile(inf, ouf, mdf);
       createSQLiteDB(inf, db, fn);
     }
   }
@@ -180,73 +180,62 @@ class unsas {
       stmt.executeUpdate(sql);
 
       /*************************************************************************
-       ******************************* Add data ********************************
-       *******************************          *******************************/
+      ********************       Write the metadata      ***********************
+      ********************                               **********************/
+      
+      // Look in csvMetadataWriter: column names are pretty much hardcoded
+      sql = "CREATE TABLE " + tbl + "Meta (number INTEGER, name TEXT, type TEXT, dataLength INTEGER, format TEXT, label TEXT);";
+      stmt.execute(sql);
 
-      // Create temporary file for writing rows to, then reading from
-      File fn = File.createTempFile(".temp", null);
-      Writer writer = new FileWriter(fn.getName());
-      CSVDataWriter csvDataWriter = new CSVDataWriter(writer, "\t");
+      i = 0;
+      stmt = c.createStatement();
 
-      // Now read the data
-      FileReader fr = new FileReader(fn.getName());
-      BufferedReader textReader = new BufferedReader(fr);
+      while(true){
+        try{
+          sql = "INSERT INTO " + tbl + " VALUES (";
+          sql += sasFileReader.getColumns().get(i).getId() + ", ";
+          sql += sasFileReader.getColumns().get(i).getName() + ", ";
+          sql += sasFileReader.getColumns().get(i).getType().getName()
+                 .replace("java.lang.Number", "Numeric")
+                 .replace("java.lang.String", "Character") + ", ";
+          sql += sasFileReader.getColumns().get(i).getLength() + ", ";
+          sql += sasFileReader.getColumns().get(i).getFormat() + ", ";
+          sql += sasFileReader.getColumns().get(i).getLabel() + ");";
 
-      while (true){
-        try {
-          // Get the values
-          Object [] data = sasFileReader.readNext();
-          if (data == null) break;
-
-          sql = "";
-          for(i=0; i < data.length; i++){
-            if (data[i] == null) sql += "\"NULL\","; 
-            else sql += "\"" + data[i].toString().replaceAll("[\\n\\r\\t]",  " ").replaceAll(",", ";").replaceAll("\"",  "'") + "\",";
-          }
-
-          sql = sql.substring(0, sql.length() - 1); // Remove last comma
-
-          sql = "INSERT INTO " + tbl + " VALUES (" + sql + ");";
           stmt.execute(sql);
-        }
-        catch(Exception e){
-          System.err.println("Failed to write line to SQLite: " + sql);
-          e.printStackTrace();
-          System.exit(0);
+          i ++;
+        } // Close try
+        catch (Exception e){
+          break;
         }
       } // Close while
 
       /*************************************************************************
-      ********************       Write the metadata      ***********************
-      ********************                               **********************/
+       ******************************* Add data ********************************
+       *******************************          *******************************/
 
-      File mfn = File.createTempFile(".temp", null);
-      Writer mwriter = new FileWriter(mfn.getName());
-      CSVMetadataWriter csvMetadataWriter = new CSVMetadataWriter(mwriter, "\t");
-      csvMetadataWriter.writeMetadata(sasFileReader.getColumns());
+      try {
+        Object [][] data = sasFileReader.readAll();
 
-      // Now read the data
-      FileReader mfr = new FileReader(mfn.getName());
-      BufferedReader mtextReader = new BufferedReader(mfr);
+        int j;
+        for (j=0; j < data.length; j++){
+          sql = "";
+          for(i=0; i < data[j].length; i++){
+            if (data[j][i] == null) sql += "\"NULL\",";
+            else{
+              sql += "\"" + data[j][i].toString().replaceAll("[\\n\\r\\t]",  " ").replaceAll("\"",  "''") + "\",";
+            }
+          }
+          sql = sql.substring(0, sql.length() - 1); // Remove last comma
 
-      stmt = c.createStatement();
-
-      System.out.println("... and metadata");
-
-      sql = "CREATE TABLE " + tbl + "Meta (";
-      String newline = mtextReader.readLine(); // First line is colnames
-      newline = newline.replaceAll(" ", "_");
-      sql += newline; 
-      sql = sql.replaceAll("\t", " TEXT, ") + " TEXT";
-      sql += ");";
-      //System.out.println(sql);
-      stmt.execute(sql);
-
-      while((newline = mtextReader.readLine()) != null){
-        newline = tidySQL(newline);
-        sql = "INSERT INTO " + tbl + "Meta VALUES (" + newline + ")";
-        //System.out.println(sql);
-        stmt.execute(sql);
+          sql = "INSERT INTO " + tbl + " VALUES (" + sql + ");";
+          stmt.execute(sql);
+         } // Close for (j=0
+      } // Close try
+      catch(Exception e){
+        System.err.println("Failed to write line to SQLite: " + sql);
+        e.printStackTrace();
+        System.exit(0);
       }
 
       /*************************************************************************
@@ -255,13 +244,6 @@ class unsas {
 
       stmt.close();
       c.close();
-      writer.close();
-      mwriter.close();
-      textReader.close();
-      mtextReader.close();
-      fr.close();
-      // fn.delete() doesn't work, possibly because sasFileReader is still open and has no close method
-      Runtime.getRuntime().exec("rm " + fn.getName());
     } // Close try
     catch (IOException ioe) {
       System.err.println("There has been an IO error");

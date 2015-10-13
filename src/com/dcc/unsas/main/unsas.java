@@ -52,17 +52,17 @@ class unsas {
     /* Get names of SAS files in the path */
     String[] fns = getSasFilenames(args[0]);
 
-    /* Convert the files */
+    /* Convert the filTEXes */
     for (String fn : fns){
       String inf = args[0] + "/" + fn + ".sas7bdat";
       String ouf = args[0] + "/csv/" + fn + ".csv";
-      String db = args[0] + "/sqlite/" + "sqlite.db";
+      String db = args[0] + "unsas.db";
       String mdf = args[0] + "/csv/meta/" + fn + ".csv";
 
       // Create the CSV and SQLite. The CSV is mostly for debugging and is wasteful of disc space
       // DO NOT DELETE THE CSV CODE!!
-      //System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
-      //createDataFile(inf, ouf, mdf);
+      System.out.println(fn + ".sas7bdat -> csv/" + fn + ".csv");
+      createDataFile(inf, ouf, mdf);
       createSQLiteDB(inf, db, fn);
     }
   }
@@ -184,7 +184,7 @@ class unsas {
       ********************                               **********************/
       
       // Look in csvMetadataWriter: column names are pretty much hardcoded
-      sql = "CREATE TABLE " + tbl + "Meta (number INTEGER, name TEXT, type TEXT, dataLength INTEGER, format TEXT, label TEXT);";
+      sql = "CREATE TABLE " + tbl + "Meta (number INTEGER, name TEXT, type TEXT, length INTEGER, format TEXT, label TEXT);";
       stmt.execute(sql);
 
       i = 0;

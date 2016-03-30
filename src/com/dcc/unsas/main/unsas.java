@@ -17,12 +17,11 @@ import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.io.Writer;
 
-import com.ggasoftware.parso.CSVDataWriter;
-import com.ggasoftware.parso.CSVMetadataWriter;
-import com.ggasoftware.parso.Column;
-import com.ggasoftware.parso.SasFileReader;
-//import com.ggasoftware.parso.StringWriter;
+import com.epam.parso.impl.CSVDataWriterImpl;
+import com.epam.parso.impl.CSVMetadataWriterImpl;
+import com.epam.parso.impl.SasFileReaderImpl;
 
+import org.apache.log4j.Logger;
 
 class unsas {
   public static void main(String[] args){
@@ -107,17 +106,18 @@ class unsas {
       File file = new File(sasfile);
 
       FileInputStream fis = new FileInputStream(file);
-      SasFileReader sasFileReader = new SasFileReader(fis);
+      //com.epam.parso.SasFileReader sasFileReader = new SasFileReaderImpl(fis);
+      com.epam.parso.SasFileReader sasFileReader = new SasFileReaderImpl(fis);
 
       // Write the data
       Writer writer = new FileWriter(csvfile);
-      CSVDataWriter csvDataWriter = new CSVDataWriter(writer);
+      com.epam.parso.impl.CSVDataWriterImpl csvDataWriter = new CSVDataWriterImpl(writer);
       csvDataWriter.writeColumnNames(sasFileReader.getColumns());
       csvDataWriter.writeRowsArray(sasFileReader.getColumns(), sasFileReader.readAll());
       
       // Write the metadata
       Writer mwriter = new FileWriter(metafile);
-      CSVMetadataWriter csvMetadataWriter = new CSVMetadataWriter(mwriter);
+      com.epam.parso.impl.CSVMetadataWriterImpl csvMetadataWriter = new CSVMetadataWriterImpl(mwriter);
       csvMetadataWriter.writeMetadata(sasFileReader.getColumns());
     }
     catch (IOException ioe) {
@@ -136,7 +136,7 @@ class unsas {
     try {
       File file = new File(sasfile);
       FileInputStream fis = new FileInputStream(file);
-      SasFileReader sasFileReader = new SasFileReader(fis);
+      com.epam.parso.impl.SasFileReaderImpl sasFileReader = new SasFileReaderImpl(fis);
 
       Class.forName("org.sqlite.JDBC");
       c = DriverManager.getConnection("jdbc:sqlite:" + dbfile);

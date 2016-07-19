@@ -1,27 +1,17 @@
 package com.dcc.unsas.main;
 
-import java.nio.charset.Charset;
 import java.sql.*;
-import java.awt.List;
 import java.util.*;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.StringWriter;
 import java.io.Writer;
 
 import com.epam.parso.impl.CSVDataWriterImpl;
 import com.epam.parso.impl.CSVMetadataWriterImpl;
 import com.epam.parso.impl.SasFileReaderImpl;
-
-import org.apache.log4j.Logger;
 
 class unsas {
   public static void main(String[] args){
@@ -51,11 +41,11 @@ class unsas {
     /* Get names of SAS files in the path */
     String[] fns = getSasFilenames(args[0]);
 
-    /* Convert the filTEXes */
+    /* Convert the files */
     for (String fn : fns){
       String inf = args[0] + "/" + fn + ".sas7bdat";
       String ouf = args[0] + "/csv/" + fn + ".csv";
-      String db = args[0] + "unsas.db";
+      String db = args[0] + "/sqlite/unsas.db";
       String mdf = args[0] + "/csv/meta/" + fn + ".csv";
 
       // Create the CSV and SQLite. The CSV is mostly for debugging and is wasteful of disc space

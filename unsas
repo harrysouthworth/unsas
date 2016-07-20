@@ -5,4 +5,4 @@ cd ~/Work/repos/github/unsas/
 #echo $wh
 java -cp libs/*:bin com.dcc.unsas.main.unsas $DN
 #python3 python/cleanCSV.py "$1/csv"
-
+# pointless comment for testing GitHub token
